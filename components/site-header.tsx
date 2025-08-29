@@ -16,24 +16,40 @@ const navLinks = [
 
 type SessionInfo = { isAuth: boolean; isAdmin: boolean };
 
-export function SiteHeader() {
+type SiteHeaderProps = {
+  hasEnv: boolean;
+};
+
+export function SiteHeader({ hasEnv }: SiteHeaderProps) {
   const pathname = usePathname();
-  const supabase = useMemo(() => createClient(), []);
+  const supabase = useMemo(() => {
+    if (!hasEnv) return null as unknown as ReturnType<typeof createClient>;
+    return createClient();
+  }, [hasEnv]);
   const [sessionInfo, setSessionInfo] = useState<SessionInfo>({ isAuth: false, isAdmin: false });
 
   useEffect(() => {
+    if (!hasEnv) return;
     (async () => {
-      const { data: session } = await supabase.auth.getSession();
-      const isAuth = Boolean(session.session);
-      let isAdmin = false;
-      if (isAuth) {
-        const userId = session.session!.user.id;
-        const { data } = await supabase.from("admins").select("user_id").eq("user_id", userId).maybeSingle();
-        isAdmin = Boolean(data?.user_id);
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const isAuth = Boolean(session.session);
+        let isAdmin = false;
+        if (isAuth) {
+          const userId = session.session!.user.id;
+          const { data } = await supabase
+            .from("admins")
+            .select("user_id")
+            .eq("user_id", userId)
+            .maybeSingle();
+          isAdmin = Boolean(data?.user_id);
+        }
+        setSessionInfo({ isAuth, isAdmin });
+      } catch {
+        setSessionInfo({ isAuth: false, isAdmin: false });
       }
-      setSessionInfo({ isAuth, isAdmin });
     })();
-  }, [supabase]);
+  }, [supabase, hasEnv]);
   return (
     <header className="w-full border-b">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
@@ -52,12 +68,12 @@ export function SiteHeader() {
               {link.label}
             </Link>
           ))}
-          {!sessionInfo.isAuth && (
+          {hasEnv && !sessionInfo.isAuth && (
             <Link href="/auth/login" className="hover:underline underline-offset-4">
               Sign in
             </Link>
           )}
-          {sessionInfo.isAuth && (
+          {hasEnv && sessionInfo.isAuth && (
             <>
               {sessionInfo.isAdmin ? (
                 <Link href="/dashboard" className="hover:underline underline-offset-4">Dashboard</Link>
