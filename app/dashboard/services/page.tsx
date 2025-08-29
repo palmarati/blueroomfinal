@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import ServiceManagerClient from "./service-manager-client";
 
 export default async function DashboardServices() {
   const supabase = await createClient();
@@ -6,10 +7,11 @@ export default async function DashboardServices() {
     .from("service_categories")
     .select("id,name,slug,visible,sort_order")
     .order("sort_order");
-  const { data: services } = await supabase
+  const { data: servicesRaw } = await supabase
     .from("services")
-    .select("id,name,slug,description,category_id,visible,draft,base_price_cents,base_duration_min")
+    .select("id,name,description,category_id,visible,draft,base_price_cents,base_duration_min,deposit_cents,image_url,color")
     .order("name");
+  const services = servicesRaw ?? [];
 
   async function addCategory(formData: FormData) {
     "use server";
@@ -27,12 +29,66 @@ export default async function DashboardServices() {
     const description = String(formData.get("description") || "");
     const visible = formData.get("visible") === "on";
     const draft = formData.get("draft") === "on";
-    const base_price_cents = Number(formData.get("base_price_cents") || 0);
+    const base_price_dollars = parseFloat(String(formData.get("base_price_dollars") || "0"));
+    const base_price_cents = Math.round((isNaN(base_price_dollars) ? 0 : base_price_dollars) * 100);
     const base_duration_min = Number(formData.get("base_duration_min") || 0);
+    const deposit_dollars = parseFloat(String(formData.get("deposit_dollars") || "0"));
+    const deposit_cents = Math.round((isNaN(deposit_dollars) ? 0 : deposit_dollars) * 100);
+    const category_id = String(formData.get("category_id") || "") || null;
+    const image_url = String(formData.get("image_url") || "") || null;
+    const color = String(formData.get("color") || "") || null;
     await supa
       .from("services")
-      .update({ name, description, visible, draft, base_price_cents, base_duration_min })
+      .update({ name, description, visible, draft, base_price_cents, base_duration_min, deposit_cents, category_id, image_url, color })
       .eq("id", id);
+  }
+
+  async function createService(formData: FormData) {
+    "use server";
+    const supa = await createClient();
+    const name = String(formData.get("name") || "").trim();
+    const description = String(formData.get("description") || "");
+    const category_id = String(formData.get("category_id") || "") || null;
+    const visible = formData.get("visible") === "on";
+    const draft = formData.get("draft") === "on";
+    const image_url = String(formData.get("image_url") || "") || null;
+    const color = String(formData.get("color") || "") || null;
+    const base_price_dollars = parseFloat(String(formData.get("base_price_dollars") || "0"));
+    const base_price_cents = Math.round((isNaN(base_price_dollars) ? 0 : base_price_dollars) * 100);
+    const base_duration_min = Number(formData.get("base_duration_min") || 0);
+    const deposit_dollars = parseFloat(String(formData.get("deposit_dollars") || "0"));
+    const deposit_cents = Math.round((isNaN(deposit_dollars) ? 0 : deposit_dollars) * 100);
+    const raw = name.toLowerCase().replace(/[^a-z0-9\s-]/g, "").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    let slug = raw || `service-${Date.now()}`;
+    let attempts = 0;
+    while (attempts < 3) {
+      const { error } = await supa
+        .from("services")
+        .insert({ name, slug, description, category_id, visible, draft, base_price_cents, base_duration_min, deposit_cents, image_url, color });
+      if (!error) break;
+      if ((error.message || "").toLowerCase().includes("duplicate")) { slug = `${raw}-${Math.floor(Math.random()*1000)}`; attempts++; continue; }
+      break;
+    }
+    // Handle options arrays if provided
+    const names = formData.getAll("option_name[]").map(String).filter(Boolean);
+    const prices = formData.getAll("option_price_dollars[]").map((s) => Math.round((parseFloat(String(s)||"0")||0)*100));
+    const durations = formData.getAll("option_duration_min[]").map((s) => Number(String(s)||0));
+    const buffers = formData.getAll("option_processing_min[]").map((s) => Number(String(s)||0));
+    const deposits = formData.getAll("option_deposit_dollars[]").map((s) => Math.round((parseFloat(String(s)||"0")||0)*100));
+    if (names.length > 0) {
+      const { data: svc } = await supa.from("services").select("id").eq("slug", slug).maybeSingle();
+      if (svc?.id) {
+        const rows = names.slice(0,10).map((n, i) => ({ service_id: svc.id, name: n, price_delta_cents: prices[i]||0, duration_delta_min: durations[i]||0, sort_order: i, visible: true }));
+        await supa.from("service_options").insert(rows);
+      }
+    }
+  }
+
+  async function deleteService(formData: FormData) {
+    "use server";
+    const supa = await createClient();
+    const id = String(formData.get("id"));
+    await supa.from("services").delete().eq("id", id);
   }
 
   async function addService(formData: FormData) {
@@ -125,42 +181,13 @@ export default async function DashboardServices() {
       </section>
 
       <section className="border rounded p-4">
-        <h2 className="font-semibold mb-2">Services</h2>
-        <div className="space-y-4">
-          {(services ?? []).map((s) => (
-            <form key={s.id} action={updateService} className="border rounded p-3 space-y-2">
-              <input type="hidden" name="id" value={s.id} />
-              <div className="grid md:grid-cols-2 gap-2">
-                <div>
-                  <label className="block text-xs mb-1">Name</label>
-                  <input name="name" defaultValue={s.name} className="border rounded px-2 py-1 w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1">Base price (cents)</label>
-                  <input name="base_price_cents" type="number" defaultValue={s.base_price_cents ?? 0} className="border rounded px-2 py-1 w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1">Base duration (min)</label>
-                  <input name="base_duration_min" type="number" defaultValue={s.base_duration_min ?? 0} className="border rounded px-2 py-1 w-full" />
-                </div>
-                <div className="flex items-center gap-4 mt-5">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="visible" defaultChecked={!!s.visible} /> visible
-                  </label>
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input type="checkbox" name="draft" defaultChecked={!!s.draft} /> draft
-                  </label>
-                </div>
-              </div>
-              <div>
-                <label className="block text-xs mb-1">Description</label>
-                <textarea name="description" defaultValue={s.description ?? ""} className="border rounded px-2 py-1 w-full" />
-              </div>
-              <button type="submit" className="underline">Save</button>
-            </form>
-          ))}
-          {(!services || services.length === 0) && <div>No services yet.</div>}
-        </div>
+        <ServiceManagerClient
+          categories={(categories ?? [])}
+          services={(services ?? []).map((s) => ({ ...s, optionsCount: 0, categoryName: (categories ?? []).find((c) => c.id === s.category_id)?.name }))}
+          onCreate={createService}
+          onUpdate={updateService}
+          onDelete={deleteService}
+        />
       </section>
     </div>
   );
