@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { makeSquareClient } from "@/lib/square-client";
+import { Client } from "square";
 
 export const runtime = "nodejs";
 
@@ -9,10 +9,29 @@ type PayBody = {
 };
 
 function getSquareEnv() {
-  const env = process.env.SQUARE_ENV === "production" ? "production" : "sandbox";
+  const env = process.env.SQUARE_ENV?.toLowerCase() === "production" ? "production" : "sandbox";
   return env as "sandbox" | "production";
 }
 
+function getSquareClient() {
+  const accessToken = process.env.SQUARE_ACCESS_TOKEN;
+  if (!accessToken) {
+    throw new Error("SQUARE_ACCESS_TOKEN is not set");
+  }
+  const env = getSquareEnv();
+  return new Client({ accessToken, environment: env as any });
+}
+
+async function chooseActiveCardLocation(client: Client) {
+  const { result } = await client.locationsApi.listLocations();
+  const locations = result.locations ?? [];
+  const activeWithCard = locations.find((loc) => {
+    const active = loc.status === "ACTIVE";
+    const caps = loc.capabilities ?? [];
+    return active && caps.includes("CREDIT_CARD_PROCESSING");
+  });
+  return activeWithCard?.id;
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -29,21 +48,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const client = makeSquareClient(env, process.env.SQUARE_ACCESS_TOKEN!);
-    const { result } = await client.locationsApi.listLocations();
-    const locationId = (result.locations ?? []).find((l) => l.status === "ACTIVE" && (l.capabilities ?? []).includes("CREDIT_CARD_PROCESSING"))?.id;
+    const client = getSquareClient();
+    const locationId = await chooseActiveCardLocation(client);
     if (!locationId) {
       return NextResponse.json({ error: "No ACTIVE Square location with CREDIT_CARD_PROCESSING found" }, { status: 500 });
     }
 
     const idempotencyKey = crypto.randomUUID();
-    const { result: payResult } = await client.paymentsApi.createPayment({
+    const { result } = await client.paymentsApi.createPayment({
       sourceId,
       idempotencyKey,
       locationId,
       amountMoney: { amount: BigInt(amountCents), currency: "USD" },
     });
-    return NextResponse.json(payResult.payment ?? payResult);
+    return NextResponse.json(result.payment ?? result);
   } catch (err: any) {
     const status = err?.statusCode ?? 500;
     const errorBody = err?.result ?? { error: err?.message ?? "Unknown error" };

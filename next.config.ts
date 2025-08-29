@@ -3,33 +3,29 @@ import type { NextConfig } from "next";
 function buildCsp(env: string) {
   const isProd = env === "production";
   const isDevRuntime = process.env.NODE_ENV !== "production";
-
-  if (isDevRuntime) {
-    // Relaxed CSP for dev to avoid blank screens due to blocked HMR/overlay/scripts
-    return [
-      "default-src 'self' blob: data: https: http:",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' blob: https: http:",
-      "style-src 'self' 'unsafe-inline' https: http:",
-      "img-src 'self' data: blob: https: http:",
-      "connect-src 'self' ws: wss: https: http:",
-      "frame-src 'self' https: http:",
-      "font-src https: http:",
-    ].join("; ");
-  }
-
   const scriptSrc = isProd ? "https://web.squarecdn.com" : "https://sandbox.web.squarecdn.com";
   const frameSrc = scriptSrc;
-  const connectSrc = isProd ? "https://pci-connect.squareup.com" : "https://pci-connect.squareupsandbox.com";
+  const connectSrc = isProd ? "https://pci-connect.squareup.com" : "https://sandbox.web.squarecdn.com https://pci-connect.squareupsandbox.com";
   const fontSrc = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net";
-  return [
-    "default-src 'self'",
-    `script-src 'self' ${scriptSrc}`,
+  const scriptDirectives = [`script-src 'self' ${scriptSrc}`];
+  if (isDevRuntime) {
+    scriptDirectives[0] += " 'unsafe-eval' blob:"; // Next dev/HMR and Turbopack workers
+  }
+  const connectDirectives = [`connect-src 'self' ${connectSrc}`];
+  if (isDevRuntime) {
+    connectDirectives[0] += " ws: http://localhost:*"; // enable HMR websockets and dev connections
+  }
+  const parts = [
+    "default-src 'self' blob: data:",
+    scriptDirectives[0],
     `frame-src 'self' ${frameSrc}`,
-    `connect-src 'self' ${connectSrc}`,
+    connectDirectives[0],
     "style-src 'self' 'unsafe-inline'",
-    `font-src ${fontSrc}`,
-    "img-src 'self' data:",
-  ].join("; ");
+    `font-src 'self' ${fontSrc}`,
+    "img-src 'self' data: blob:",
+    "worker-src 'self' blob:",
+  ];
+  return parts.join("; ");
 }
 
 const nextConfig: NextConfig = {

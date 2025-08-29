@@ -1,21 +1,25 @@
-import { NextResponse } from "next/server";
-import { makeSquareClient } from "@/lib/square-client";
+import { NextResponse } from 'next/server';
+import { Client } from 'square';
 
-export const runtime = "nodejs";
+export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const env: "production" | "sandbox" = process.env.SQUARE_ENV === "production" ? "production" : "sandbox";
+    const env: 'production' | 'sandbox' =
+      process.env.SQUARE_ENV === 'production' ? 'production' : 'sandbox';
 
     if (!process.env.SQUARE_ACCESS_TOKEN) {
-      return NextResponse.json({ ok: false, error: "SQUARE_ACCESS_TOKEN missing" }, { status: 500 });
+      return NextResponse.json({ ok: false, error: 'SQUARE_ACCESS_TOKEN missing' }, { status: 500 });
     }
 
-    const client = makeSquareClient(env, process.env.SQUARE_ACCESS_TOKEN!);
+    const client = new Client({
+      accessToken: process.env.SQUARE_ACCESS_TOKEN!,
+      environment: env as any,
+    });
 
     const { result } = await client.locationsApi.listLocations();
-    const loc = (result.locations ?? []).find((l: { status?: string; capabilities?: string[] }) =>
-      l.status === "ACTIVE" && (l.capabilities ?? []).includes("CREDIT_CARD_PROCESSING")
+    const loc = result.locations?.find(
+      l => l.status === 'ACTIVE' && (l.capabilities ?? []).includes('CREDIT_CARD_PROCESSING')
     );
 
     return NextResponse.json({
@@ -23,11 +27,13 @@ export async function GET() {
       env,
       applicationIdPresent: Boolean(process.env.SQUARE_APPLICATION_ID),
       locationIdFound: Boolean(loc?.id),
-      scriptUrl: env === "production" ? "https://web.squarecdn.com/v1/square.js" : "https://sandbox.web.squarecdn.com/v1/square.js",
+      scriptUrl:
+        env === 'production'
+          ? 'https://web.squarecdn.com/v1/square.js'
+          : 'https://sandbox.web.squarecdn.com/v1/square.js',
     });
-  } catch (e: unknown) {
-    const message = e instanceof Error ? e.message : "unknown error";
-    return NextResponse.json({ ok: false, error: message }, { status: 500 });
+  } catch (e: any) {
+    return NextResponse.json({ ok: false, error: e?.message ?? 'unknown error' }, { status: 500 });
   }
 }
 
