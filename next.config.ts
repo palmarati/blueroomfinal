@@ -9,7 +9,7 @@ function buildCsp(env: string) {
   const fontSrc = "https://square-fonts-production-f.squarecdn.com https://d1g145x70srn7h.cloudfront.net";
   const scriptDirectives = [`script-src 'self' ${scriptSrc}`];
   if (isDevRuntime) {
-    scriptDirectives[0] += " 'unsafe-eval' blob:"; // Next dev/HMR and Turbopack workers
+    scriptDirectives[0] += " 'unsafe-eval' 'unsafe-inline' blob:"; // Next dev/HMR and Turbopack workers + inline dev scripts
   }
   const connectDirectives = [`connect-src 'self' ${connectSrc}`];
   if (isDevRuntime) {

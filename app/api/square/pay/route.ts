@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Client } from "square";
+import { Client } from "square/legacy";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ function getSquareClient() {
     throw new Error("SQUARE_ACCESS_TOKEN is not set");
   }
   const env = getSquareEnv();
-  return new Client({ accessToken, environment: env as any });
+  return new Client({ bearerAuthCredentials: { accessToken }, environment: env as any });
 }
 
 async function chooseActiveCardLocation(client: Client) {

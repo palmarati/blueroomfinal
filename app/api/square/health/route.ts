@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
-import { Client } from 'square';
+import { Client } from 'square/legacy';
 
 export const runtime = 'nodejs';
 
 export async function GET() {
   try {
-    const env: 'production' | 'sandbox' =
+    const env: 'sandbox' | 'production' =
       process.env.SQUARE_ENV === 'production' ? 'production' : 'sandbox';
 
     if (!process.env.SQUARE_ACCESS_TOKEN) {
@@ -13,13 +13,15 @@ export async function GET() {
     }
 
     const client = new Client({
-      accessToken: process.env.SQUARE_ACCESS_TOKEN!,
+      bearerAuthCredentials: { accessToken: process.env.SQUARE_ACCESS_TOKEN! },
+      // Cast to any to avoid importing Environment enum; runtime uses string env
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       environment: env as any,
     });
 
     const { result } = await client.locationsApi.listLocations();
     const loc = result.locations?.find(
-      l => l.status === 'ACTIVE' && (l.capabilities ?? []).includes('CREDIT_CARD_PROCESSING')
+      (l) => l.status === 'ACTIVE' && (l.capabilities ?? []).includes('CREDIT_CARD_PROCESSING')
     );
 
     return NextResponse.json({
@@ -32,8 +34,9 @@ export async function GET() {
           ? 'https://web.squarecdn.com/v1/square.js'
           : 'https://sandbox.web.squarecdn.com/v1/square.js',
     });
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? 'unknown error' }, { status: 500 });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : 'unknown error';
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }
 
