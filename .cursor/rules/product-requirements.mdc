@@ -1,0 +1,381 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# Blue Room Spa OS — Product Requirements Document (PRD)
+
+**Version:** 0.9 (Draft)
+**Date:** 2025‑08‑28
+**Product:** Blue Room Spa OS (web app)
+**Primary Stakeholders:** Owner (Stephanie), Project Lead (Tommy), Dev/Design, Content, Marketing
+**Source refs:** Provided flowchart screenshot (Booking, Shop, Client Portal, Admin Dashboard, Supabase Backend, Square, Webhooks/External CRM), prior project notes.
+
+---
+
+## 1) Overview & Problem Statement
+
+Blue Room Spa needs a cohesive, modern digital system that: (a) showcases services/products, (b) lets clients book and pay seamlessly, (c) provides a client portal, and (d) gives staff an elegant, real‑time admin to manage the business without living in an external CRM. The OS centralizes data (Supabase) and pushes/receives updates to integrators (Square for payments; GoHighLevel/External CRM via Webhooks) so Stephanie manages everything in one sleek dashboard.
+
+---
+
+## 2) Objectives & Non‑Goals
+
+**Objectives**
+
+* Provide a frictionless client experience: discover → book → pay → manage account.
+* Single source of truth for services, pricing, availability, clients, bookings, orders.
+* Operational dashboard for approvals, calendar, clients, services, analytics.
+* Real‑time updates for new requests, approvals, cancellations, and payments.
+* Automatic sync to External CRM (GHL) for contacts, events, notifications/automations.
+* Aesthetic excellence consistent with Blue Room Spa brand (see UI guidelines).
+
+**Non‑Goals (initial release)**
+
+* Native mobile apps (web PWA only).
+* On‑premises deployments.
+* Multi‑location/multi‑brand support (future).
+* Full in‑app two‑way messaging parity with GHL (phase 2+).
+
+---
+
+## 3) Personas
+
+1. **Spa Client (guest or logged‑in)** — books services, buys products, manages appointments and profile, saves payment method.
+2. **Returning Client** — wants quick rebooking, history, and personalized offers/modules.
+3. **Admin/Owner (Stephanie) & Staff** — manage calendar, approve/deny, edit services/products, run reports, configure business settings.
+
+---
+
+## 4) System & Scope Summary
+
+* **Front‑of‑House (Public Website):** Home, About, Services, Contact, Shop, Booking, Auth.
+* **Booking System:** Service selection → date/time → add‑ons → client details → payment (Square) → confirmation.
+* **Shop:** Product catalog → cart → checkout (Square).
+* **Client Portal:** Dashboard, appointments, profile, payment methods, educational modules, orders/receipts.
+* **Admin Dashboard:** Overview, calendar, appointment queue (approve/deny), clients, services, products, analytics/reports, business settings.
+* **Backend:** Supabase (Auth, Database, Edge Functions, Realtime); Integrations (Square payments & webhooks; External CRM/GHL via webhooks & API); Real‑time notifications.
+
+---
+
+## 5) Success Metrics (MVP targets)
+
+* Booking completion rate ≥ **60%** from step‑1 start.
+* Avg. booking time to complete ≤ **2 mins** (returning) / **4 mins** (guest).
+* < **1%** double‑booking conflicts.
+* Admin task time to approve/deny ≤ **10s** from notification.
+* NPS (post‑visit) ≥ **50**.
+* 99.9% uptime for booking and checkout flows.
+
+---
+
+## 6) Roles & Permissions
+
+* **Guest:** browse site, start booking, create cart, checkout (as guest), create account.
+* **Client:** everything Guest + view/manage appointments, profile, saved cards, modules, orders.
+* **Staff:** access Admin Dashboard (limited), view calendar & assigned bookings, mark complete, add notes.
+* **Admin:** full Admin Dashboard, service/product/settings management, reports, integrations.
+
+---
+
+## 7) Design & Brand Requirements
+
+* **Frontend theme:** modern, minimal, light mode default on public site & shop.
+* **Booking page:** reads like a Services page with inline booking controls; zero friction.
+* **Backend (Client Portal & Admin):** *restore/keep* light blue modern gradient with a clean, modern UI.
+* **Admin sidebar:** persistent left sidebar (never removed) for primary nav.
+* **Responsiveness:** mobile‑first, works flawlessly on iOS/Android Chrome/Safari.
+* **Accessibility:** WCAG 2.2 AA (contrast, focus states, keyboard nav, semantics).
+* **Motion:** subtle micro‑interactions; respect `prefers-reduced-motion`.
+
+---
+
+## 8) Page & Feature Requirements
+
+### 8.1 Public Website (No auth)
+
+**Routes:** `/`, `/about`, `/services`, `/contact`, `/shop`, `/booking`, `/auth`
+
+**Home (/):** hero (CTA to book), featured services, testimonials, shop teaser, location/hours, footer.
+**About (/about):** brand story, practitioner bios, certifications, images.
+**Services (/services):** dynamic list driven by Admin Services; each service shows duration, price, description, add‑ons, and **Book** button.
+**Contact (/contact):** map, address, hours, contact form (writes lead to Supabase + webhook to CRM).
+**Shop (/shop):** categories, search, product cards (price, image, quick add), cart icon with badge.
+**Booking (/booking):** unified booking flow (embedded or dedicated route).
+**Auth (/auth):** login/signup (email+password + magic link). Password reset.
+
+**Acceptance criteria:**
+
+* Services page must reflect Admin‑edited services within 5s (realtime) or on next navigation.
+* SEO meta tags, OpenGraph images; Core Web Vitals LCP <2.5s on 4G.
+
+---
+
+### 8.2 Booking System (Multi‑step)
+
+**Steps:** 1) Service Selection → 2) Date/Time → 3) Add‑ons → 4) Client Details → 5) Payment → 6) Confirmation.
+
+* **Service Selection:** choose base service; pull durations/price; show add‑on eligibility.
+* **Date/Time:** calendar shows real‑time availability (Supabase function computes slots; prevents conflicts); timezone aware (America/Los\_Angeles).
+* **Add‑ons:** attach optional add‑ons with incremental duration/price.
+* **Client Details:** name, email, phone, notes, consent; offer account creation or login.
+* **Payment (Square):** card entry via Square Web Payments SDK (tokenized), Apple Pay/Google Pay if available; capture or authorize per Business Settings.
+* **Confirmation:** show summary, email/SMS receipt, add to calendar (ICS), portal link.
+
+**Edge cases:** duplicate holds, stale availability, payment decline, partial add‑on capacity, cancellation/reschedule windows, no‑show fee logic.
+**Acceptance criteria:**
+
+* No raw card data passes through servers; Square tokenization only.
+* Double‑booking rate <1% with optimistic locking + conflict check on confirm.
+* Admin receives realtime notification of **new request** and **paid booking**.
+
+---
+
+### 8.3 Shop
+
+* **Catalog:** categories, search, inventory qty (optional), variants, pricing, images, description, related items.
+* **Cart:** add/remove, quantity, promo codes, tax & shipping (if applicable), estimated total.
+* **Checkout:** guest or logged‑in; shipping/pickup toggle; payment via Square.
+* **Orders:** create order + order\_items, capture payment, email receipt, link to portal.
+
+**Acceptance criteria:**
+
+* Light‑mode aesthetic; consistent with Public site.
+* Taxes/shipping computed per Business Settings.
+* Inventory decremented on paid order; restock on refund/cancel.
+
+---
+
+### 8.4 Client Portal (Auth: Client)
+
+**Route:** `/portal`
+
+* **Dashboard:** upcoming appointment(s), quick rebook, last order, saved card(s).
+* **Appointments:** list/detail, reschedule/cancel per policy, add‑ons edit (if allowed), receipts.
+* **Profile:** contact info, preferences, consents, **Payment Methods** (Square card on file).
+* **Orders:** e‑commerce history, invoice/receipt PDFs.
+* **Educational Modules:** curated content (pre‑/post‑care, FAQs, videos, downloads).
+
+**Acceptance criteria:**
+
+* Saved cards managed via Square APIs; we store only refs/tokens.
+* Realtime update if Admin changes appointment status.
+
+---
+
+### 8.5 Admin Dashboard (Auth: Staff/Admin)
+
+**Routes:** `/dashboard`, `/dashboard/calendar`, others via sidebar.
+
+* **Overview:** KPIs (today/week/month revenue, bookings, utilization, avg. ticket, new clients), alerts (pending approvals, failed payments).
+* **Appointment Queue:** stream of **Requests** with one‑click **Approve/Deny**; auto‑notify client; optional collect payment on approve if set to *authorize then capture*.
+* **Calendar Management:** day/week/month views, drag‑drop reschedule (with conflict guard), staff filters.
+* **Clients:** search, view history, notes, lifetime value, contact quick‑actions.
+* **Service Management:** create/edit services & add‑ons (name, description, category, duration, base price, add‑on price, buffer, visibility); instant propagation to site/booking/portal; seasonal pricing windows.
+* **Products:** manage catalog, categories, inventory, pricing, images.
+* **Analytics & Reports:** revenue by service, bookings by source, conversion funnel, utilization, no‑show rate. Export CSV.
+* **Business Settings:** hours, blackout dates, locations, taxes/fees, cancellation policy, payments mode (authorize vs capture), staff & roles, integrations (Square, CRM keys), email/SMS templates.
+
+**Aesthetic requirements:** left sidebar **always visible**, light blue gradient theme, modern cards, clean tables, tasteful empty states.
+**Realtime:** incoming request toasts, calendar updates, payment events.
+
+---
+
+## 9) Integrations
+
+### 9.1 Square (Payments)
+
+* Web Payments SDK for card entry + wallets; tokenize client‑side.
+* Endpoints: create payment (or payment intent), capture/void, refunds, save card on file (customer + card).
+* Webhooks: payment.updated, refund.updated → update Orders/Appointments, trigger notifications.
+* PCI: never touch PAN; store Square customer/card IDs only.
+
+### 9.2 External CRM (GoHighLevel) via Webhooks/API
+
+* **Outbound Webhooks (from OS → GHL):** contact upsert, booking created/approved/cancelled, order created, form submissions.
+* **Inbound (GHL → OS):** automation status callbacks (optional), message events (phase 2).
+* **Messaging plan:** Phase 1 display deep links to GHL conversations; Phase 2 surface conversation read/write in Admin using GHL API or Twilio sub‑account bridging with staff attribution.
+
+---
+
+## 10) Data Model (Supabase) — High Level
+
+**Auth:** users (id, email, role), sessions.
+**People:** clients, staff, addresses, consents.
+**Services:** services, service\_addons, service\_categories, service\_prices (date‑range), service\_staff (who can perform), service\_blocks (buffers).
+**Availability/Calendar:** business\_hours, blackout\_dates, staff\_availability, appointments, appointment\_addons, appointment\_status\_history.
+**Payments/Commerce:** payments, payment\_methods (Square refs), refunds, orders, order\_items, carts, cart\_items, products, product\_categories, inventory.
+**Content:** modules (educational), media\_assets.
+**Comms:** notifications, email\_templates, sms\_templates.
+**Integrations:** integration\_accounts (Square, CRM), webhook\_outbox, webhook\_inbox, audit\_log.
+
+**Indexes/constraints:** unique slots per staff+time, FK cascades, RLS policies per role.
+**Realtime channels:** appointments, orders, notifications.
+
+---
+
+## 11) Edge Functions (Supabase)
+
+* `compute_available_slots(service_id, staff_id?, date_range)`: apply business hours, buffers, existing bookings.
+* `confirm_booking(payload)`: atomic transaction to create appointment, hold/capture payment, emit webhooks.
+* `square_webhook_handler`: verify signature, update state, emit realtime.
+* `crm_webhook_handler`: ingest external events (optional).
+* `propagate_service_change`: invalidate caches, push updates to Public site & CRM.
+* `notify`: email/SMS dispatch via provider.
+
+---
+
+## 12) Notifications
+
+* **Client:** booking request/approval/denial, reminders (24h/3h), reschedule/cancel, order confirmations, refund issued.
+* **Admin/Staff:** new request, payment failures, day‑start digest, inventory low.
+* Channel routing via provider; CRM can mirror for automations.
+
+---
+
+## 13) Policies & Rules
+
+* **Cancellation window:** configurable (e.g., 24h); late cancel/no‑show fee if set.
+* **Prepayment:** optional deposit vs full; capture timing configurable.
+* **Reschedule limits:** N times per booking; cutoff window.
+* **Add‑on logic:** eligibility matrix per base service; durations/price increments.
+
+---
+
+## 14) Security, Privacy, Compliance
+
+* RLS for all tables; least privilege; audit log of changes.
+* PII encryption at rest; secrets in environment (Lovable/Supabase vault).
+* PCI scope: out‑of‑scope for card data (Square).
+* Consent & email/SMS opt‑in storage; CCPA data export/delete endpoints.
+* Rate limiting on public APIs; bot protection on forms.
+
+---
+
+## 15) Analytics & Instrumentation
+
+* Events: `services_view`, `booking_start`, `slot_select`, `addons_select`, `checkout_start`, `payment_success`, `payment_fail`, `order_complete`, `portal_login`, `reschedule`, `cancel`, `approve`, `deny`.
+* Funnels: Services → Booking complete; Product view → Order complete.
+* Product metrics: utilization by staff/service, LTV, repeat rate.
+
+---
+
+## 16) Performance Targets
+
+* TTI < 2.5s on public pages; < 3.5s on dashboard (warm).
+* API P95 < 300ms for read, < 700ms for write.
+* Realtime event fan‑out < 2s end‑to‑end.
+
+---
+
+## 17) Acceptance Criteria by Area
+
+* Services edited in Admin appear on `/services` and in Booking within **5s**.
+* Approve/Deny button changes appointment status, triggers client notification, updates calendar instantly.
+* Square payment success/failure always reconciles to a single appointment/order state.
+* Admin sidebar always visible; backend theme uses light blue gradient.
+* Booking available time never offers past or blocked slots; concurrent confirm checks prevent overlaps.
+* Guest checkout possible; account creation optional.
+
+---
+
+## 18) Testing & QA
+
+* **Unit:** slot computation, pricing, add‑on eligibility.
+* **Integration:** booking confirm with Square webhook; cancel/reschedule policy; refunds.
+* **E2E:** guest booking, returning booking, deny/approve, reschedule, shop order, refund.
+* **Accessibility audits:** axe-core; keyboard only; screen reader pass.
+* **Load:** concurrent booking attempts on same slot; 100 RPS burst.
+
+---
+
+## 19) Deployment & Environments
+
+* **Envs:** Dev, Staging, Prod (separate Supabase projects & Square sandboxes).
+* **CI/CD:** commit → preview → staging approvals → prod.
+* **Secrets:** Square keys, CRM keys, SMTP, JWT keys.
+* **Monitoring:** error reporting, uptime checks, webhook dead‑letter queue.
+
+---
+
+## 20) Migration Plan (from Base44 / prior app)
+
+* Export services/products/clients as CSV; import to Supabase.
+* Map booking history to appointments; best effort on IDs.
+* Validate parity of availability rules and pricing.
+* Soft launch with staged DNS cutover; run smoke tests.
+
+---
+
+## 21) Open Questions / Future Phases
+
+* In‑app two‑way messaging inside Admin (Phase 2) leveraging GHL/Twilio.
+* Gift cards, memberships, packages.
+* Tips/gratuity at checkout & staff splits.
+* Multi‑therapist simultaneous bookings (couples).
+* Loyalty points and referral tracking.
+
+---
+
+## 22) Glossary
+
+* **Add‑on:** Optional extra attached to a base service with time/price delta.
+* **Hold vs Capture:** Payment authorization vs collection.
+* **Realtime:** Supabase channel events updating clients instantly.
+
+---
+
+### Sign‑off
+
+This PRD represents the shared understanding for MVP + immediate iterations and should be kept current as scope evolves.
+
+
+Fixes
+
+Tables we need:
+
+Services
+- list of all the services that the spa offers, both ones that are live on the website and drafted (just in her backend system). 
+Services_options
+- sometimes services have options that alter the duration, the price, the sizing, etc
+Services_categories
+- Categories to sort different types of services (for example, like buccal facial 
+
+Appointments
+- log of all upcoming, cancelled, requested, no showed, and past appointments.
+
+products
+- list of products that are for sale on the e-commerce site, all of their prices, stock, information, and more.
+
+Contact
+- list of all the contacts, their names, phone numbers, emails, and stuff.  This connects to the appointments, history, payment methods, etc.
+
+Users
+- people with login to the portal or the dashboard (and their roles, admin vs user). 
+
+
+The client portal: 
+- have tabs: appointments, modules, profile. 
+    - appointments shows all upcoming, past, cancelled appointments.
+    - Upcoming appointments have a three step checklist kinda thing (showing that Stephanie has to accept the appointment, then they fill out the intake/waiver_form, then they watch the video
+    - The profile tab allows them to update name, email, phone, pfp, add notes, and update payment method. 
+
+The dashboard
+- the main tab allows Stephanie to view the calendar of all of her appointments and some quick metrics/data.
+- The services tab allows her to edit, delete, and mange all services that the spa offers, and draft ones that are no longer available
+    - She can edit the service categories too.
+- The products tab allows her to edit, delete, and manage all products that are Available on the e-commerce site.
+    - She can edit the brands and categories as well. 
+- The clients tab is essentially her CRM, she can view all of her clients, see the information about them (and if they have a service booked currently, it shows that as well). 
+    - She can edit the clients info, upload photos, and view appointment history and LTV
+    - This syncs perfectly with the client portal, so any changes she makes, (for example, changes their name), updates live on the client portal as well.
+- The business settings allowed her to changes business name, phone, email, address. She can also change the booking controls (such as minimum start time, maximum date, booking increment, etc). 
+
+The website
+- the website consists of five main pages: the home page (just a hero, than the services, than a section to buy gift cards, than a place with reviews, than a footer), the about page, a contact page, a booking page (where users can select a service, an add on, select a date and a time, and add their contact info and checkout), and an e-commerce page (where users can purchase products).
+    - The “services” (which Stephanie can edit and configure within her dashboard) are consistent through the website and booking system and information is updated dynamically.
+    - The footer at the bottom of every page is also dynamic, as the information in it updates dynamically.
+    - The e-commerce page allows users to look at products, add them to cart, and check out. The products are configured and edited within Stephanie’s dashboard, and they update dynamically.
+        - Product can either be available in house, or not in house (determined through the dashboard). If they are in house, the e-commerce system should allow an option to “pick up in store,” as opposed to ordering online.
+        - Product ordering can also be one of two options: either the product has an affiliate link, in which Blue Room Spa would NOT handle the fulfillment in house (instead, the buy online would like to the affiliate URL). If the product does not have an affiliate link, the checkout process is normal and the team can figure it out in house and fulfill it in person. 

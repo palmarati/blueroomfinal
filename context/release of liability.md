@@ -1,0 +1,13 @@
+Release of Liability
+
+The individual clicking to accept this release (referred to as "I" or "me") desires to participate in certain spa and/or beauty services offered by The Blue Room Spa (the "Business"). In consideration of being provided the requested spa and/or beauty services, I agree to all the terms and conditions set forth in this agreement (this "Release").
+
+  1. I am aware and understand that participation may involve the risk of serious injury, disability, death, and/or property damage. I am also aware that there are no guaranteed benefits of the services requested, including therapeutic or alternative medicine services. I understand that the Business cannot guarantee that I will receive any sort of physical or psychological benefits from the services rendered. NOTWITHSTANDING THESE RISKS, I ACKNOWLEDGE THAT I AM VOLUNTARILY ACCESSING THE PREMISES AND REQUESTING SERVICES WITH KNOWLEDGE OF THE RISKS INVOLVED, AND I HEREBY AGREE TO ACCEPT AND ASSUME ALL RISKS OF ILLNESS, PERSONAL OR PSYCHOLOGICAL INJURY, PAIN, SUFFERING, TEMPORARY OR PERMANENT DISABILITY, DEATH, PROPERTY DAMAGE, AND/OR FINANCIAL LOSS ARISING THEREFROM, WHETHER CAUSED BY THE ORDINARY NEGLIGENCE OF THE BUSINESS OR OTHERWISE.
+  
+  2. I hereby expressly waive and release any and all claims, now known or hereafter known, against the Business and its successors, and assigns (collectively, "Releasees") on account of personal or psychological injury, illness, pain, suffering, temporary or permanent disability, death, property damage, or financial loss arising out of or attributable to my being on the premises and receiving certain spa and/or beauty services, whether arising out of the ordinary negligence of the Business or any Releasees or otherwise.
+  
+  3. This Release constitutes the sole and entire agreement of the Business and me with respect to the subject matter contained herein and supersedes all prior and contemporaneous understandings, agreements, representations, and warranties, both written and oral, with respect to such subject matter. If any term or provision of this Release is invalid, illegal, or unenforceable in any jurisdiction, such invalidity, illegality, or unenforceability shall not affect any other term or provision of this Release or invalidate or render unenforceable such term or provision in any other jurisdiction. This Release is binding on and shall inure to the benefit of the Business and me and our respective successors and assigns. This Agreement shall be governed by the laws of the state Business maintains its primary location.
+
+
+By Checking here, I agree to the terms of the Release of Liability
+

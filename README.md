@@ -94,6 +94,28 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.
 
+## Database: Supabase
+
+Migrations:
+
+```bash
+# Apply pending migrations locally
+npm run db:migrate:up
+
+# List local and remote migrations
+npm run db:migrate:list
+```
+
+Seed generation (from context files):
+
+```bash
+# Generates supabase/seed.sql from context/services.md, clients CSV, and products CSV
+npm run seed:generate
+
+# Then load into your database (example)
+# psql "$SUPABASE_DB_URL" -f supabase/seed.sql
+```
+
 ## Feedback and issues
 
 Please file feedback and issues over on the [Supabase GitHub org](https://github.com/supabase/supabase/issues/new/choose).

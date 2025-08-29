@@ -1,0 +1,19 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+You have been provided with lots of context in `/context`, including:
+
+- context/Checkout Line Items-2025-08-27.csv: all past transactions, to be imported and tied to clients
+- context/clients_export_2025-08-26.csv: all clients and emails
+- context/pages.md: all required pages
+- context/release of liability.md: release of liability to be used in the app
+- context/RETAIL_ The Room Spa - Sheet1.csv: list of retail products, also to be imported
+- context/services.md: list of all services required to be on the page
+- context/waiver form.md: wavier form to use for spa appointments
+
+And finally, context/blue-room-concierge. NEVER use code from this project directly, as it is quite messy.
+PLEASE use the same styling, but use shadcn components to make everything consistent. It is here for reference
+but should not be used to copy code from.
