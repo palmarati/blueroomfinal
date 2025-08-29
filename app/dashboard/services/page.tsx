@@ -8,7 +8,7 @@ export default async function DashboardServices() {
     .order("sort_order");
   const { data: services } = await supabase
     .from("services")
-    .select("id,name,slug,description,category_id,visible,draft,base_price_cents,base_duration_min,deposit_cents")
+    .select("id,name,slug,description,category_id,visible,draft,base_price_cents,base_duration_min")
     .order("name");
 
   async function addCategory(formData: FormData) {
@@ -27,14 +27,11 @@ export default async function DashboardServices() {
     const description = String(formData.get("description") || "");
     const visible = formData.get("visible") === "on";
     const draft = formData.get("draft") === "on";
-    const base_price_dollars = parseFloat(String(formData.get("base_price_dollars") || "0"));
-    const base_price_cents = Math.round((isNaN(base_price_dollars) ? 0 : base_price_dollars) * 100);
+    const base_price_cents = Number(formData.get("base_price_cents") || 0);
     const base_duration_min = Number(formData.get("base_duration_min") || 0);
-    const deposit_dollars = parseFloat(String(formData.get("deposit_dollars") || "0"));
-    const deposit_cents = Math.round((isNaN(deposit_dollars) ? 0 : deposit_dollars) * 100);
     await supa
       .from("services")
-      .update({ name, description, visible, draft, base_price_cents, base_duration_min, deposit_cents })
+      .update({ name, description, visible, draft, base_price_cents, base_duration_min })
       .eq("id", id);
   }
 
@@ -67,16 +64,12 @@ export default async function DashboardServices() {
                   <input name="name" defaultValue={s.name} className="border rounded px-2 py-1 w-full" />
                 </div>
                 <div>
-                  <label className="block text-xs mb-1">Base price ($)</label>
-                  <input name="base_price_dollars" type="number" step="0.01" defaultValue={((s.base_price_cents ?? 0) / 100).toFixed(2)} className="border rounded px-2 py-1 w-full" />
+                  <label className="block text-xs mb-1">Base price (cents)</label>
+                  <input name="base_price_cents" type="number" defaultValue={s.base_price_cents ?? 0} className="border rounded px-2 py-1 w-full" />
                 </div>
                 <div>
                   <label className="block text-xs mb-1">Base duration (min)</label>
                   <input name="base_duration_min" type="number" defaultValue={s.base_duration_min ?? 0} className="border rounded px-2 py-1 w-full" />
-                </div>
-                <div>
-                  <label className="block text-xs mb-1">Deposit ($)</label>
-                  <input name="deposit_dollars" type="number" step="0.01" defaultValue={((s.deposit_cents ?? 0) / 100).toFixed(2)} className="border rounded px-2 py-1 w-full" />
                 </div>
                 <div className="flex items-center gap-4 mt-5">
                   <label className="inline-flex items-center gap-2 text-sm">
