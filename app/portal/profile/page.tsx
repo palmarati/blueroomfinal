@@ -1,5 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
-import dynamic from "next/dynamic";
+import AddCardClient from "./add-card-client";
 import { disableSquareCard } from "@/lib/square";
 
 export default async function PortalProfile() {
@@ -81,8 +81,7 @@ export default async function PortalProfile() {
       </form>
       <div className="mt-8">
         <h3 className="font-semibold mb-2">Payment Methods</h3>
-        {/* @ts-ignore */}
-        {DynamicAddCard()}
+        <AddCardClient />
         <div className="mt-3 space-y-2">
           {(paymentMethods ?? []).length === 0 && <div className="text-sm text-muted-foreground">No saved cards.</div>}
           {(paymentMethods ?? []).map((pm) => (
@@ -100,10 +99,5 @@ export default async function PortalProfile() {
 }
 
 
-function AddCardClient() {
-  // Placeholder replaced by dynamic import client-side
-  return null as any;
-}
-
-const DynamicAddCard = dynamic(() => import("./add-card-client"), { ssr: false });
+// Client add-card component is imported directly above
 

@@ -1,9 +1,14 @@
-import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
+function resolveSquareBaseUrl(): string {
+	const env = (process.env.SQUARE_ENV || "").toLowerCase();
+	if (env === "sandbox") return "https://connect.squareupsandbox.com";
+	if (env === "production" || env === "prod") return "https://connect.squareup.com";
+	// Auto-detect by application id prefix when SQUARE_ENV not provided
+	const appId = process.env.SQUARE_APPLICATION_ID || "";
+	if (appId.startsWith("sandbox-")) return "https://connect.squareupsandbox.com";
+	return "https://connect.squareup.com";
+}
 
-const SQUARE_ENV = (process.env.SQUARE_ENV || "production").toLowerCase();
-const SQUARE_BASE_URL = SQUARE_ENV === "sandbox"
-	? "https://connect.squareupsandbox.com"
-	: "https://connect.squareup.com";
+const SQUARE_BASE_URL = resolveSquareBaseUrl();
 
 function getAccessToken(): string {
 	const token = process.env.SQUARE_ACCESS_TOKEN;

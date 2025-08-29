@@ -292,7 +292,9 @@ function BookingClient() {
             <button onClick={submit} className="underline">Request appointment</button>
             {message && <div className="text-sm mt-2">{message}</div>}
             {/* Payment UI for immediate capture */}
-            <DynamicBookingPayment amountCents={amountCents} appointmentId={appointmentId ?? undefined} />
+            {appointmentId && amountCents > 0 && (
+              <DynamicBookingPayment amountCents={amountCents} appointmentId={appointmentId ?? undefined} />
+            )}
           </div>
         )}
       </div>
