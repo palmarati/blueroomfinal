@@ -35,13 +35,15 @@ export async function fetchSquare<T>(path: string, init?: RequestInit): Promise<
 	return res.json() as Promise<T>;
 }
 
-export type SquareLocation = { id: string; name?: string };
+export type SquareLocation = { id: string; name?: string; status?: string; capabilities?: string[] };
 
 export async function getDefaultLocationId(): Promise<string> {
 	const data = await fetchSquare<{ locations: SquareLocation[] }>("/v2/locations");
-	const first = data.locations?.[0];
-	if (!first?.id) throw new Error("No Square locations found");
-	return first.id;
+	const list = data.locations ?? [];
+	const preferred = list.find((l) => (l.status === "ACTIVE") && ((l.capabilities ?? []).some((c) => c === "CARD_PROCESSING" || c === "CREDIT_CARD_PROCESSING")));
+	const pick = preferred ?? list[0];
+	if (!pick?.id) throw new Error("No Square locations found with card processing");
+	return pick.id;
 }
 
 export async function getSquareConfig(): Promise<{ applicationId: string; locationId: string }> {
