@@ -51,7 +51,5 @@
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5"
   },
-  "overrides": {
-    "square": "41.0.0"
-  }
+  "overrides": {}
 }
