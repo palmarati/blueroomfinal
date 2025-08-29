@@ -1,9 +1,9 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import dynamic from "next/dynamic";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
+import SquarePaymentForm from "@/components/square-payment-form";
 
 type Service = {
   id: string;
@@ -44,8 +44,9 @@ function BookingClient() {
   const [guestFirst, setGuestFirst] = useState<string>("");
   const [guestLast, setGuestLast] = useState<string>("");
   const [guestPhone, setGuestPhone] = useState<string>("");
-  const [appointmentId, setAppointmentId] = useState<string | null>(null);
   const [amountCents, setAmountCents] = useState<number>(0);
+  const [durationMin, setDurationMin] = useState<number>(0);
+  const [showPayment, setShowPayment] = useState<boolean>(false);
 
   useEffect(() => {
     (async () => {
@@ -100,89 +101,33 @@ function BookingClient() {
     })();
   }, [serviceId, supabase]);
 
+  // Recompute pricing and duration whenever selections change
+  useEffect(() => {
+    const svc = services.find((s) => s.id === serviceId);
+    const opt = options.find((o) => o.id === optionId);
+    const basePrice = svc?.base_price_cents ?? 0;
+    const baseDuration = svc?.base_duration_min ?? 0;
+    const optPrice = opt?.price_delta_cents ?? 0;
+    const optDuration = opt?.duration_delta_min ?? 0;
+    const addons = eligibleAddons.filter((a) => selectedAddonIds.includes(a.id));
+    const addonPrice = addons.reduce((acc, a) => acc + (a.price_delta_cents ?? 0), 0);
+    const addonDuration = addons.reduce((acc, a) => acc + (a.duration_delta_min ?? 0), 0);
+    setAmountCents(basePrice + optPrice + addonPrice);
+    setDurationMin(baseDuration + optDuration + addonDuration);
+  }, [services, serviceId, options, optionId, eligibleAddons, selectedAddonIds]);
+
   async function submit() {
     setMessage("");
     if (!serviceId || !startAt) {
       setMessage("Please select a service and a date/time.");
       return;
     }
-    const { data: session } = await supabase.auth.getSession();
-    const startTs = new Date(startAt);
-    // simplistic duration compute
-    const svc = services.find((s) => s.id === serviceId);
-    const opt = options.find((o) => o.id === optionId);
-    const durationMin = (svc?.base_duration_min ?? 0) + (opt?.duration_delta_min ?? 0);
-    const addonDuration = eligibleAddons
-      .filter((a) => selectedAddonIds.includes(a.id))
-      .reduce((acc, a) => acc + (a.duration_delta_min ?? 0), 0);
-    const endTs = new Date(startTs.getTime() + (durationMin + addonDuration) * 60000);
-
-    let createdAppointmentId: string | undefined;
-    if (session.session && !guest) {
-      // Authenticated flow
-      const userId = session.session.user.id;
-      const { data: client } = await supabase
-        .from("clients")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-      if (!client?.id) {
-        setMessage("Your client profile was not found.");
-        return;
-      }
-      const { data: inserted, error } = await supabase.from("appointments").insert({
-        client_id: client.id,
-        service_id: serviceId,
-        service_option_id: optionId,
-        start_at: startTs.toISOString(),
-        end_at: endTs.toISOString(),
-        notes: note,
-      }).select("id").single();
-      if (error) {
-        setMessage("Failed to create appointment: " + error.message);
-        return;
-      }
-      createdAppointmentId = inserted?.id as string | undefined;
-    } else {
-      // Guest flow: minimal details
-      if (!guestEmail || !guestFirst) {
-        setMessage("Please provide your email and first name.");
-        return;
-      }
-      const { data, error } = await supabase.rpc("guest_create_appointment", {
-        p_email: guestEmail,
-        p_first_name: guestFirst,
-        p_last_name: guestLast || null,
-        p_phone: guestPhone || null,
-        p_service_id: serviceId,
-        p_service_option_id: optionId,
-        p_start_at: startTs.toISOString(),
-        p_end_at: endTs.toISOString(),
-        p_notes: note || null,
-        p_addon_ids: selectedAddonIds,
-      });
-      if (error) {
-        setMessage("Failed to create appointment: " + error.message);
-        return;
-      }
-      createdAppointmentId = data as unknown as string | undefined;
+    if (guest && !guestEmail) {
+      setMessage("Please provide your email for guest booking.");
+      return;
     }
-    // For guest flow, add-ons were handled by RPC. For auth flow, we add here.
-    if (session.session && !guest) {
-      if (createdAppointmentId && selectedAddonIds.length > 0) {
-        await supabase.from("appointment_addons").insert(
-          selectedAddonIds.map((addonId) => ({ appointment_id: createdAppointmentId, addon_id: addonId }))
-        );
-      }
-    }
-    // compute amount
-    const base = svc?.base_price_cents ?? 0;
-    const optDelta = opt?.price_delta_cents ?? 0;
-    const addonDelta = eligibleAddons.filter((a) => selectedAddonIds.includes(a.id)).reduce((acc, a) => acc + (a.price_delta_cents ?? 0), 0);
-    setAmountCents(base + optDelta + addonDelta);
-    setAppointmentId(createdAppointmentId ?? null);
-    setMessage("Appointment requested! Proceed to payment below to confirm.");
-    // Optionally render payment if required now
+    setShowPayment(true);
+    setMessage("Enter payment details to confirm your appointment.");
   }
 
   return (
@@ -289,11 +234,46 @@ function BookingClient() {
               <label className="block text-sm mb-1">Notes</label>
               <textarea className="border rounded px-3 py-2 w-full" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <button onClick={submit} className="underline">Request appointment</button>
+            <button onClick={submit} className="underline">Proceed to payment</button>
             {message && <div className="text-sm mt-2">{message}</div>}
-            {/* Payment UI for immediate capture */}
-            {appointmentId && amountCents > 0 && (
-              <DynamicBookingPayment amountCents={amountCents} appointmentId={appointmentId ?? undefined} />
+            {showPayment && (
+              <div className="mt-4">
+                <SquarePaymentForm
+                  buttonLabel={`Pay $${(amountCents / 100).toFixed(2)}`}
+                  onToken={async (token) => {
+                    try {
+                      const startTs = new Date(startAt);
+                      const endTs = new Date(startTs.getTime() + durationMin * 60000);
+                      const res = await fetch("/api/booking/confirm", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          service_id: serviceId,
+                          service_option_id: optionId,
+                          addon_ids: selectedAddonIds,
+                          start_at: startTs.toISOString(),
+                          end_at: endTs.toISOString(),
+                          notes: note || undefined,
+                          guest,
+                          guest_email: guest ? guestEmail : undefined,
+                          guest_first: guest ? guestFirst : undefined,
+                          guest_last: guest ? guestLast : undefined,
+                          guest_phone: guest ? guestPhone : undefined,
+                          sourceId: token,
+                        }),
+                      });
+                      if (!res.ok) {
+                        const j = await res.json().catch(() => ({}));
+                        throw new Error(j?.error || "Payment/confirm failed");
+                      }
+                      setMessage("Payment successful! Appointment booked.");
+                      setShowPayment(false);
+                    } catch (e: any) {
+                      setMessage(e?.message ?? "Payment failed");
+                    }
+                  }}
+                />
+              </div>
             )}
           </div>
         )}
@@ -309,7 +289,5 @@ export default function BookingPage() {
     </Suspense>
   );
 }
-
-const DynamicBookingPayment = dynamic(() => import("./payment-client"), { ssr: false });
 
 

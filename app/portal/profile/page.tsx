@@ -1,6 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import AddCardClient from "./add-card-client";
-import { disableSquareCard } from "@/lib/square";
 
 export default async function PortalProfile() {
   const supabase = await createClient();
@@ -35,24 +33,6 @@ export default async function PortalProfile() {
     }
   }
 
-  async function removeCard(cardId: string) {
-    "use server";
-    const supa = await createClient();
-    const { data: { user: u } } = await supa.auth.getUser();
-    if (!u) return;
-    const { data: c } = await supa.from("clients").select("id").eq("user_id", u.id).maybeSingle();
-    if (!c?.id) return;
-    const { data: pm } = await supa
-      .from("payment_methods")
-      .select("id")
-      .eq("client_id", c.id)
-      .eq("square_card_id", cardId)
-      .maybeSingle();
-    if (!pm?.id) return;
-    await disableSquareCard(cardId);
-    await supa.from("payment_methods").delete().eq("id", pm.id);
-  }
-
   return (
     <div className="max-w-2xl">
       <h2 className="font-semibold mb-2">Profile</h2>
@@ -85,7 +65,10 @@ export default async function PortalProfile() {
         <div className="mt-3 space-y-2">
           {(paymentMethods ?? []).length === 0 && <div className="text-sm text-muted-foreground">No saved cards.</div>}
           {(paymentMethods ?? []).map((pm) => (
-            <form key={pm.id} action={async () => { await removeCard(pm.square_card_id as string); }}>
+            <form key={pm.id} action={async () => {
+              "use server";
+              await fetch(`${process.env.NEXT_PUBLIC_BASE_URL ?? ""}/api/square/delete-card`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ cardId: pm.square_card_id }) });
+            }}>
               <div className="flex items-center justify-between border rounded p-2 text-sm">
                 <div>{pm.brand ?? "Card"} •••• {pm.last4} {pm.exp_month && pm.exp_year ? `(exp ${pm.exp_month}/${pm.exp_year})` : ""}</div>
                 <button type="submit" className="underline">Remove</button>
@@ -99,5 +82,8 @@ export default async function PortalProfile() {
 }
 
 
-// Client add-card component is imported directly above
+function AddCardClient() {
+  // Placeholder replaced by dynamic import client-side
+  return null as any;
+}
 

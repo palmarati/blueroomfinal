@@ -12,7 +12,8 @@ export default async function ShopAdminPage() {
     const supa = await createClient();
     const id = String(formData.get("id"));
     const name = String(formData.get("name"));
-    const price_cents = Number(formData.get("price_cents") || 0);
+    const price_dollars = parseFloat(String(formData.get("price_dollars") || "0"));
+    const price_cents = Math.round((isNaN(price_dollars) ? 0 : price_dollars) * 100);
     const visible = formData.get("visible") === "on";
     const in_house = formData.get("in_house") === "on";
     const affiliate_url = String(formData.get("affiliate_url") || "");
@@ -31,8 +32,8 @@ export default async function ShopAdminPage() {
               <input name="name" defaultValue={p.name} className="border rounded px-2 py-1 w-full" />
             </div>
             <div>
-              <label className="block text-xs mb-1">Price (cents)</label>
-              <input name="price_cents" type="number" defaultValue={p.price_cents ?? 0} className="border rounded px-2 py-1 w-full" />
+              <label className="block text-xs mb-1">Price ($)</label>
+              <input name="price_dollars" type="number" step="0.01" defaultValue={((p.price_cents ?? 0) / 100).toFixed(2)} className="border rounded px-2 py-1 w-full" />
             </div>
             <div>
               <label className="block text-xs mb-1">Affiliate URL</label>
