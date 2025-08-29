@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Client, Environment } from "square";
 
 export const runtime = "nodejs";
 
@@ -13,20 +12,28 @@ function getSquareEnv() {
   return env as "sandbox" | "production";
 }
 
-function getSquareClient() {
+async function loadSquare() {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mod: any = await import("square");
+  return { Client: mod.Client, Environment: mod.Environment };
+}
+
+async function getSquareClient() {
   const accessToken = process.env.SQUARE_ACCESS_TOKEN;
   if (!accessToken) {
     throw new Error("SQUARE_ACCESS_TOKEN is not set");
   }
   const env = getSquareEnv();
+  const { Client, Environment } = await loadSquare();
   const environment = env === "production" ? Environment.Production : Environment.Sandbox;
   return new Client({ accessToken, environment });
 }
 
-async function chooseActiveCardLocation(client: Client) {
+async function chooseActiveCardLocation(client: any) {
   const { result } = await client.locationsApi.listLocations();
   const locations = result.locations ?? [];
-  const activeWithCard = locations.find((loc) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const activeWithCard = locations.find((loc: any) => {
     const active = loc.status === "ACTIVE";
     const caps = loc.capabilities ?? [];
     return active && caps.includes("CREDIT_CARD_PROCESSING");
@@ -49,7 +56,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const client = getSquareClient();
+    const client = await getSquareClient();
     const locationId = await chooseActiveCardLocation(client);
     if (!locationId) {
       return NextResponse.json({ error: "No ACTIVE Square location with CREDIT_CARD_PROCESSING found" }, { status: 500 });
