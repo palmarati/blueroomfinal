@@ -16,7 +16,8 @@ function getScriptUrl(env: "sandbox" | "production") {
 async function loadSquare() {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mod: any = await import("square");
-  return { Client: mod.Client, Environment: mod.Environment };
+  const ns = mod?.default ?? mod;
+  return { Client: ns.Client, Environment: ns.Environment };
 }
 
 async function getSquareClient() {

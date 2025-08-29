@@ -8,10 +8,11 @@ function getSquareEnv() {
 }
 
 async function loadSquare() {
-  // Dynamic import to avoid ESM/CJS interop issues in Next route handlers
+  // Dynamic import with default fallback to handle CJS interop
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mod: any = await import("square");
-  return { Client: mod.Client, Environment: mod.Environment };
+  const ns = mod?.default ?? mod;
+  return { Client: ns.Client, Environment: ns.Environment };
 }
 
 async function getSquareClient() {
