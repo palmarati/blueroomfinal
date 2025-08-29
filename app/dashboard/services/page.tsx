@@ -35,9 +35,81 @@ export default async function DashboardServices() {
       .eq("id", id);
   }
 
+  async function addService(formData: FormData) {
+    "use server";
+    const supa = await createClient();
+    const name = String(formData.get("name") || "").trim();
+    const description = String(formData.get("description") || "");
+    const category_id = String(formData.get("category_id") || "") || null;
+    const visible = formData.get("visible") === "on";
+    const draft = formData.get("draft") === "on";
+    const base_price_cents = Number(formData.get("base_price_cents") || 0);
+    const base_duration_min = Number(formData.get("base_duration_min") || 0);
+    if (!name) return;
+    const raw = name
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    let slug = raw || `service-${Date.now()}`;
+    let attempts = 0;
+    while (attempts < 3) {
+      const { error } = await supa
+        .from("services")
+        .insert({ name, slug, description, category_id, visible, draft, base_price_cents, base_duration_min });
+      if (!error) break;
+      if ((error.message || "").toLowerCase().includes("duplicate")) {
+        slug = `${raw}-${Math.floor(Math.random() * 1000)}`;
+        attempts++;
+        continue;
+      }
+      break;
+    }
+  }
+
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Services & Categories</h1>
+      <section className="border rounded p-4">
+        <h2 className="font-semibold mb-2">Add New Service</h2>
+        <form action={addService} className="grid md:grid-cols-2 gap-2">
+          <div>
+            <label className="block text-xs mb-1">Name</label>
+            <input name="name" placeholder="Service name" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-xs mb-1">Category</label>
+            <select name="category_id" className="border rounded px-2 py-1 w-full">
+              <option value="">None</option>
+              {(categories ?? []).map((c) => (
+                <option key={c.id} value={c.id}>{c.name}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs mb-1">Base price (cents)</label>
+            <input name="base_price_cents" type="number" placeholder="0" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div>
+            <label className="block text-xs mb-1">Base duration (min)</label>
+            <input name="base_duration_min" type="number" placeholder="60" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="flex items-center gap-4 mt-5">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" name="visible" defaultChecked /> visible
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" name="draft" /> draft
+            </label>
+          </div>
+          <div className="md:col-span-2">
+            <label className="block text-xs mb-1">Description</label>
+            <textarea name="description" placeholder="Description" className="border rounded px-2 py-1 w-full" />
+          </div>
+          <div className="md:col-span-2"><button type="submit" className="underline">Create Service</button></div>
+        </form>
+      </section>
       <section className="border rounded p-4">
         <h2 className="font-semibold mb-2">Categories</h2>
         <form action={addCategory} className="flex gap-2 mb-3">
