@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { makeSquareClient } from "@/lib/square-client";
 
 export const runtime = "nodejs";
 
@@ -8,39 +9,10 @@ type PayBody = {
 };
 
 function getSquareEnv() {
-  const env = process.env.SQUARE_ENV?.toLowerCase() === "production" ? "production" : "sandbox";
+  const env = process.env.SQUARE_ENV === "production" ? "production" : "sandbox";
   return env as "sandbox" | "production";
 }
 
-async function loadSquare() {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod: any = await import("square");
-  const ns = mod?.default ?? mod;
-  return { Client: ns.Client, Environment: ns.Environment };
-}
-
-async function getSquareClient() {
-  const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-  if (!accessToken) {
-    throw new Error("SQUARE_ACCESS_TOKEN is not set");
-  }
-  const env = getSquareEnv();
-  const { Client, Environment } = await loadSquare();
-  const environment = env === "production" ? Environment.Production : Environment.Sandbox;
-  return new Client({ accessToken, environment });
-}
-
-async function chooseActiveCardLocation(client: any) {
-  const { result } = await client.locationsApi.listLocations();
-  const locations = result.locations ?? [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeWithCard = locations.find((loc: any) => {
-    const active = loc.status === "ACTIVE";
-    const caps = loc.capabilities ?? [];
-    return active && caps.includes("CREDIT_CARD_PROCESSING");
-  });
-  return activeWithCard?.id;
-}
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,20 +29,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
     }
 
-    const client = await getSquareClient();
-    const locationId = await chooseActiveCardLocation(client);
+    const client = makeSquareClient(env, process.env.SQUARE_ACCESS_TOKEN!);
+    const { result } = await client.locationsApi.listLocations();
+    const locationId = (result.locations ?? []).find((l) => l.status === "ACTIVE" && (l.capabilities ?? []).includes("CREDIT_CARD_PROCESSING"))?.id;
     if (!locationId) {
       return NextResponse.json({ error: "No ACTIVE Square location with CREDIT_CARD_PROCESSING found" }, { status: 500 });
     }
 
     const idempotencyKey = crypto.randomUUID();
-    const { result } = await client.paymentsApi.createPayment({
+    const { result: payResult } = await client.paymentsApi.createPayment({
       sourceId,
       idempotencyKey,
       locationId,
       amountMoney: { amount: BigInt(amountCents), currency: "USD" },
     });
-    return NextResponse.json(result.payment ?? result);
+    return NextResponse.json(payResult.payment ?? payResult);
   } catch (err: any) {
     const status = err?.statusCode ?? 500;
     const errorBody = err?.result ?? { error: err?.message ?? "Unknown error" };

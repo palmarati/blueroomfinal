@@ -1,29 +1,11 @@
 import { NextResponse } from "next/server";
+import { makeSquareClient } from "@/lib/square-client";
 
 export const runtime = "nodejs";
 
 function getSquareEnv() {
-  const env = process.env.SQUARE_ENV?.toLowerCase() === "production" ? "production" : "sandbox";
+  const env = process.env.SQUARE_ENV === "production" ? "production" : "sandbox";
   return env as "sandbox" | "production";
-}
-
-async function loadSquare() {
-  // Dynamic import with default fallback to handle CJS interop
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mod: any = await import("square");
-  const ns = mod?.default ?? mod;
-  return { Client: ns.Client, Environment: ns.Environment };
-}
-
-async function getSquareClient() {
-  const accessToken = process.env.SQUARE_ACCESS_TOKEN;
-  if (!accessToken) {
-    throw new Error("SQUARE_ACCESS_TOKEN is not set");
-  }
-  const env = getSquareEnv();
-  const { Client, Environment } = await loadSquare();
-  const environment = env === "production" ? Environment.Production : Environment.Sandbox;
-  return new Client({ accessToken, environment });
 }
 
 async function chooseActiveCardLocation(client: any) {
@@ -40,17 +22,15 @@ async function chooseActiveCardLocation(client: any) {
 
 export async function GET() {
   try {
-    const applicationId = process.env.SQUARE_APPLICATION_ID;
-    if (!applicationId) {
-      return NextResponse.json({ error: "Missing SQUARE_APPLICATION_ID" }, { status: 500 });
-    }
-    const client = await getSquareClient();
-    const locationId = await chooseActiveCardLocation(client);
-    if (!locationId) {
-      return NextResponse.json({ error: "No ACTIVE Square location with CREDIT_CARD_PROCESSING found" }, { status: 500 });
-    }
     const env = getSquareEnv();
-    return NextResponse.json({ applicationId, locationId, env });
+    if (!process.env.SQUARE_ACCESS_TOKEN || !process.env.SQUARE_APPLICATION_ID) {
+      return NextResponse.json({ error: "Square env vars missing" }, { status: 500 });
+    }
+    const client = makeSquareClient(env, process.env.SQUARE_ACCESS_TOKEN!);
+    const { result } = await client.locationsApi.listLocations();
+    const loc = result.locations?.find((l) => l.status === "ACTIVE" && (l.capabilities ?? []).includes("CREDIT_CARD_PROCESSING"));
+    if (!loc) return NextResponse.json({ error: "No active location with card processing" }, { status: 500 });
+    return NextResponse.json({ applicationId: process.env.SQUARE_APPLICATION_ID, locationId: loc.id, env });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ error: message }, { status: 500 });
