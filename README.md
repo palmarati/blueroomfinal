@@ -90,6 +90,19 @@ If you wish to just develop locally and not deploy to Vercel, [follow the steps 
 
    The starter kit should now be running on [localhost:3000](http://localhost:3000/).
 
+### Local HTTPS note for Square Web Payments
+
+Modern browsers treat `http://localhost` as a secure context for Square Web Payments SDK. If you prefer HTTPS locally, you can generate a certificate with `mkcert` and start Next with HTTPS flags (experimental in Next 15):
+
+```bash
+brew install mkcert nss
+mkcert -install
+mkcert localhost
+# next dev --https --ssl-cert=./localhost.pem --ssl-key=./localhost-key.pem
+```
+
+If the Square SDK fails to load, check for ad blockers and Content-Security-Policy console errors.
+
 6. This template comes with the default shadcn/ui style initialized. If you instead want other ui.shadcn styles, delete `components.json` and [re-install shadcn/ui](https://ui.shadcn.com/docs/installation/next)
 
 > Check out [the docs for Local Development](https://supabase.com/docs/guides/getting-started/local-development) to also run Supabase locally.

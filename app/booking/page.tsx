@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 
@@ -24,6 +25,8 @@ type Addon = {
   price_delta_cents: number;
 };
 
+const SquareCard = dynamic(() => import("@/components/SquareCard"), { ssr: false });
+
 function BookingClient() {
   const supabase = useMemo(() => createBrowserClient(), []);
   const search = useSearchParams();
@@ -38,6 +41,8 @@ function BookingClient() {
   const [note, setNote] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
   const [message, setMessage] = useState<string>("");
+  const [showPayment, setShowPayment] = useState<boolean>(false);
+  const [amountCents, setAmountCents] = useState<number>(0);
   const [guest, setGuest] = useState<boolean>(true);
   const [guestEmail, setGuestEmail] = useState<string>("");
   const [guestFirst, setGuestFirst] = useState<string>("");
@@ -172,7 +177,16 @@ function BookingClient() {
         );
       }
     }
-    setMessage("Appointment requested! You can view it in your portal.");
+    // Compute a simple price preview (does not alter existing server logic)
+    const base = services.find((s) => s.id === serviceId)?.base_price_cents ?? 0;
+    const optDelta = options.find((o) => o.id === optionId)?.price_delta_cents ?? 0;
+    const addDelta = eligibleAddons
+      .filter((a) => selectedAddonIds.includes(a.id))
+      .reduce((acc, a) => acc + (a.price_delta_cents ?? 0), 0);
+    const total = base + optDelta + addDelta;
+    setAmountCents(total > 0 ? total : 100);
+    setShowPayment(true);
+    setMessage("Appointment requested! Please complete payment.");
   }
 
   return (
@@ -279,7 +293,18 @@ function BookingClient() {
               <label className="block text-sm mb-1">Notes</label>
               <textarea className="border rounded px-3 py-2 w-full" value={note} onChange={(e) => setNote(e.target.value)} />
             </div>
-            <button onClick={submit} className="underline">Request appointment</button>
+            {!showPayment && (
+              <button onClick={submit} className="underline">Request appointment</button>
+            )}
+            {showPayment && (
+              <div className="mt-4">
+                <SquareCard
+                  amountCents={amountCents}
+                  onSuccess={() => setMessage("Payment successful! We will confirm shortly.")}
+                  onError={(m) => setMessage(m)}
+                />
+              </div>
+            )}
             {message && <div className="text-sm mt-2">{message}</div>}
           </div>
         )}
