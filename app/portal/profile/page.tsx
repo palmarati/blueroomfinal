@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import dynamic from "next/dynamic";
+import { disableSquareCard } from "@/lib/square";
 
 export default async function PortalProfile() {
   const supabase = await createClient();
@@ -9,6 +11,11 @@ export default async function PortalProfile() {
     .select("id,first_name,last_name,email,phone,notes")
     .eq("user_id", user.id)
     .maybeSingle();
+  const { data: paymentMethods } = await supabase
+    .from("payment_methods")
+    .select("id,brand,last4,exp_month,exp_year,square_card_id")
+    .eq("client_id", client?.id ?? "")
+    .order("created_at", { ascending: false });
 
   async function saveProfile(formData: FormData) {
     "use server";
@@ -26,6 +33,24 @@ export default async function PortalProfile() {
     if (email && email !== c.email) {
       await supa.auth.updateUser({ email });
     }
+  }
+
+  async function removeCard(cardId: string) {
+    "use server";
+    const supa = await createClient();
+    const { data: { user: u } } = await supa.auth.getUser();
+    if (!u) return;
+    const { data: c } = await supa.from("clients").select("id").eq("user_id", u.id).maybeSingle();
+    if (!c?.id) return;
+    const { data: pm } = await supa
+      .from("payment_methods")
+      .select("id")
+      .eq("client_id", c.id)
+      .eq("square_card_id", cardId)
+      .maybeSingle();
+    if (!pm?.id) return;
+    await disableSquareCard(cardId);
+    await supa.from("payment_methods").delete().eq("id", pm.id);
   }
 
   return (
@@ -54,8 +79,31 @@ export default async function PortalProfile() {
         </div>
         <button type="submit" className="underline">Save</button>
       </form>
+      <div className="mt-8">
+        <h3 className="font-semibold mb-2">Payment Methods</h3>
+        {/* @ts-ignore */}
+        {DynamicAddCard()}
+        <div className="mt-3 space-y-2">
+          {(paymentMethods ?? []).length === 0 && <div className="text-sm text-muted-foreground">No saved cards.</div>}
+          {(paymentMethods ?? []).map((pm) => (
+            <form key={pm.id} action={async () => { await removeCard(pm.square_card_id as string); }}>
+              <div className="flex items-center justify-between border rounded p-2 text-sm">
+                <div>{pm.brand ?? "Card"} •••• {pm.last4} {pm.exp_month && pm.exp_year ? `(exp ${pm.exp_month}/${pm.exp_year})` : ""}</div>
+                <button type="submit" className="underline">Remove</button>
+              </div>
+            </form>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
+
+function AddCardClient() {
+  // Placeholder replaced by dynamic import client-side
+  return null as any;
+}
+
+const DynamicAddCard = dynamic(() => import("./add-card-client"), { ssr: false });
 

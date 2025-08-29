@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 import { createClient as createBrowserClient } from "@/lib/supabase/client";
 import { useSearchParams } from "next/navigation";
 
@@ -172,7 +173,8 @@ function BookingClient() {
         );
       }
     }
-    setMessage("Appointment requested! You can view it in your portal.");
+    setMessage("Appointment requested! Proceed to payment below to confirm.");
+    // Optionally render payment if required now
   }
 
   return (
@@ -281,6 +283,8 @@ function BookingClient() {
             </div>
             <button onClick={submit} className="underline">Request appointment</button>
             {message && <div className="text-sm mt-2">{message}</div>}
+            {/* Payment UI for immediate capture */}
+            <DynamicBookingPayment amountCents={0} />
           </div>
         )}
       </div>
@@ -295,5 +299,7 @@ export default function BookingPage() {
     </Suspense>
   );
 }
+
+const DynamicBookingPayment = dynamic(() => import("./payment-client"), { ssr: false });
 
 

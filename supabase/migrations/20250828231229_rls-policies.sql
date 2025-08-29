@@ -137,6 +137,17 @@ create policy payments_client_read on public.payments for select using (
 );
 create policy payments_admin_mutate on public.payments for all using (public.is_admin());
 
+-- Payment methods: client manage own
+create policy payment_methods_client_read on public.payment_methods for select using (
+  client_id in (select id from public.clients where user_id = auth.uid()) or public.is_admin()
+);
+create policy payment_methods_client_insert on public.payment_methods for insert with check (
+  client_id in (select id from public.clients where user_id = auth.uid()) or public.is_admin()
+);
+create policy payment_methods_client_delete on public.payment_methods for delete using (
+  client_id in (select id from public.clients where user_id = auth.uid()) or public.is_admin()
+);
+
 create policy orders_client_read on public.orders for select using (
   client_id in (select id from public.clients where user_id = auth.uid()) or public.is_admin()
 );
