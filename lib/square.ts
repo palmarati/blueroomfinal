@@ -1,6 +1,9 @@
 import { createClient as createServerSupabaseClient } from "@/lib/supabase/server";
 
-const SQUARE_BASE_URL = "https://connect.squareup.com";
+const SQUARE_ENV = (process.env.SQUARE_ENV || "production").toLowerCase();
+const SQUARE_BASE_URL = SQUARE_ENV === "sandbox"
+	? "https://connect.squareupsandbox.com"
+	: "https://connect.squareup.com";
 
 function getAccessToken(): string {
 	const token = process.env.SQUARE_ACCESS_TOKEN;

@@ -1,6 +1,6 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import dynamic from "next/dynamic";
+import CheckoutClient from "./checkout-client";
 
 export default async function CartPage() {
   const cookieStore = await cookies();
@@ -70,13 +70,13 @@ export default async function CartPage() {
       <div className="mt-4 font-semibold">Subtotal: ${(subtotal / 100).toFixed(2)}</div>
       {items.length > 0 && (
         <div className="mt-4">
-          <DynamicCheckout amountCents={subtotal} />
+          <CheckoutClient amountCents={subtotal} />
         </div>
       )}
     </div>
   );
 }
 
-const DynamicCheckout = dynamic(() => import("./checkout-client"), { ssr: false });
+// client component imported directly
 
 

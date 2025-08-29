@@ -44,6 +44,8 @@ function BookingClient() {
   const [guestFirst, setGuestFirst] = useState<string>("");
   const [guestLast, setGuestLast] = useState<string>("");
   const [guestPhone, setGuestPhone] = useState<string>("");
+  const [appointmentId, setAppointmentId] = useState<string | null>(null);
+  const [amountCents, setAmountCents] = useState<number>(0);
 
   useEffect(() => {
     (async () => {
@@ -115,7 +117,7 @@ function BookingClient() {
       .reduce((acc, a) => acc + (a.duration_delta_min ?? 0), 0);
     const endTs = new Date(startTs.getTime() + (durationMin + addonDuration) * 60000);
 
-    let appointmentId: string | undefined;
+    let createdAppointmentId: string | undefined;
     if (session.session && !guest) {
       // Authenticated flow
       const userId = session.session.user.id;
@@ -140,7 +142,7 @@ function BookingClient() {
         setMessage("Failed to create appointment: " + error.message);
         return;
       }
-      appointmentId = inserted?.id as string | undefined;
+      createdAppointmentId = inserted?.id as string | undefined;
     } else {
       // Guest flow: minimal details
       if (!guestEmail || !guestFirst) {
@@ -163,16 +165,22 @@ function BookingClient() {
         setMessage("Failed to create appointment: " + error.message);
         return;
       }
-      appointmentId = data as unknown as string | undefined;
+      createdAppointmentId = data as unknown as string | undefined;
     }
     // For guest flow, add-ons were handled by RPC. For auth flow, we add here.
     if (session.session && !guest) {
-      if (appointmentId && selectedAddonIds.length > 0) {
+      if (createdAppointmentId && selectedAddonIds.length > 0) {
         await supabase.from("appointment_addons").insert(
-          selectedAddonIds.map((addonId) => ({ appointment_id: appointmentId, addon_id: addonId }))
+          selectedAddonIds.map((addonId) => ({ appointment_id: createdAppointmentId, addon_id: addonId }))
         );
       }
     }
+    // compute amount
+    const base = svc?.base_price_cents ?? 0;
+    const optDelta = opt?.price_delta_cents ?? 0;
+    const addonDelta = eligibleAddons.filter((a) => selectedAddonIds.includes(a.id)).reduce((acc, a) => acc + (a.price_delta_cents ?? 0), 0);
+    setAmountCents(base + optDelta + addonDelta);
+    setAppointmentId(createdAppointmentId ?? null);
     setMessage("Appointment requested! Proceed to payment below to confirm.");
     // Optionally render payment if required now
   }
@@ -284,7 +292,7 @@ function BookingClient() {
             <button onClick={submit} className="underline">Request appointment</button>
             {message && <div className="text-sm mt-2">{message}</div>}
             {/* Payment UI for immediate capture */}
-            <DynamicBookingPayment amountCents={0} />
+            <DynamicBookingPayment amountCents={amountCents} appointmentId={appointmentId ?? undefined} />
           </div>
         )}
       </div>
