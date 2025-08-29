@@ -10,6 +10,7 @@
   - Currency stored in cents.
 */
 
+/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
@@ -41,7 +42,7 @@ function priceToCents(value) {
 function readFileIfExists(file) {
   try {
     return fs.readFileSync(file, 'utf8');
-  } catch (e) {
+  } catch {
     return '';
   }
 }
@@ -101,7 +102,7 @@ function toPTISO(mmddyyCommaTime) {
   if (!mmddyyCommaTime) return null;
   const m = /(\d{2})-(\d{2})-(\d{2}),\s*(\d{1,2}):(\d{2})\s*([AP]M)/i.exec(mmddyyCommaTime);
   if (!m) return null;
-  let [_, mm, dd, yy, hh, min, ap] = m;
+  let [, mm, dd, yy, hh, min, ap] = m;
   const year = 2000 + Number(yy);
   let hour = Number(hh);
   const minute = Number(min);
@@ -119,7 +120,7 @@ function addMinutesISO(iso, minutes) {
   if (!iso) return null;
   const m = /(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})([+-]\d{2}:\d{2})/.exec(iso);
   if (!m) return iso;
-  const [_, y, mo, d, h, mi, s, off] = m;
+  const [, y, mo, d, h, mi, s, off] = m;
   const date = new Date(`${y}-${mo}-${d}T${h}:${mi}:${s}${off}`);
   date.setMinutes(date.getMinutes() + (minutes || 0));
   const pad = (n) => String(n).padStart(2, '0');
@@ -726,7 +727,7 @@ where not exists (select 1 from public.business_hours);\n\n`);
     const inserts = [];
     for (const r of rows) {
       const when = (r['Date of Appointment'] || '').trim();
-      const bookedAt = (r['Date Booked'] || '').trim();
+      void (r['Date Booked']);
       const serviceRaw = (r['Services'] || '').trim();
       const clientName = (r['Client Name'] || '').trim();
       const statusRaw = (r['Status'] || '').trim().toLowerCase();
